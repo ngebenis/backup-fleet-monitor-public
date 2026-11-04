@@ -81,6 +81,7 @@ const d: Record<Lang, Record<string, string>> = {
     time: 'Waktu', actor: 'Pelaku', action: 'Aksi', outcome: 'Hasil', ip: 'IP', role: 'Peran', active: 'Aktif', never: 'belum pernah',
     ok: 'ok', failed: 'gagal', stale: 'basi', disabled: 'nonaktif',
     forbidden: 'Anda tidak memiliki izin untuk halaman ini.',
+    alerts: 'Alert', settings: 'Pengaturan', alertsOpenN: 'alert terbuka',
   },
   en: {
     val_failure: "failure",
@@ -163,6 +164,7 @@ const d: Record<Lang, Record<string, string>> = {
     time: 'Time', actor: 'Actor', action: 'Action', outcome: 'Outcome', ip: 'IP', role: 'Role', active: 'Active', never: 'never',
     ok: 'ok', failed: 'failed', stale: 'stale', disabled: 'disabled',
     forbidden: 'You do not have permission for this page.',
+    alerts: 'Alerts', settings: 'Settings', alertsOpenN: 'open alerts',
   },
 }
 export const t = (l: Lang, k: string) => d[l][k] ?? k

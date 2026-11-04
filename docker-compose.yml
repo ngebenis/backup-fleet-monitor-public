@@ -25,6 +25,7 @@ services:
       ADMIN_BOOTSTRAP_USER: ${ADMIN_BOOTSTRAP_USER:-admin}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:?set in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      NOTIFY_ALLOW_HTTP: ${NOTIFY_ALLOW_HTTP:-false}
       SESSION_TTL: ${SESSION_TTL:-12h}
       TZ: UTC
     depends_on: { postgres: { condition: service_healthy } }

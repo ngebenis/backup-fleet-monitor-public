@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from './api'
 import { Lang, t } from './i18n'
+import { type Me, fmt, usePager, Pager, SearchBox, has, vkey } from './common'
+import { Alerts, UsersPage, SettingsPage } from './admin'
 
-type Me = { id: string; username: string; displayName: string; role: string; language: Lang; theme: string; timezone: string; mustChangePassword: boolean; permissions: string[] }
-const fmt = (s: string | null | undefined, tz: string, l: Lang) => s ? new Date(s).toLocaleString(l === 'id' ? 'id-ID' : 'en-GB', { timeZone: tz, hour12: false }) + ' ' + tz : '-'
 
 function applyTheme(th: string) {
   const dark = th === 'dark' || (th === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
@@ -21,10 +21,10 @@ export function App() {
   const can = (p: string) => me.permissions.includes(p)
   if (me.mustChangePassword) return <main><h2>{t(l, 'app')}</h2><p className="err">{t(l, 'mustChange')}</p><ChangePw me={me} onDone={() => api<Me>('GET', '/me').then(setMe)} /></main>
   const groups: [string, [string, string, boolean][]][] = [
-    [t(l, 'grpOverview'), [['overview', 'overview', true], ['audit', 'audit', can('audit.read')]]],
+    [t(l, 'grpOverview'), [['overview', 'overview', true], ['alerts', 'alerts', can('alerts.read')], ['audit', 'audit', can('audit.read')]]],
     [t(l, 'grpInfra'), [['sources', 'navSources', can('sources.read')], ['workloads', 'workloads', can('jobs.read')], ['storage', 'navStorage', can('jobs.read')], ['reports', 'navReports', can('jobs.read')]]],
     [t(l, 'grpAccess'), [['users', 'users', can('users.read')]]],
-    [t(l, 'grpSystem'), [['profile', 'profile', true]]],
+    [t(l, 'grpSystem'), [['settings', 'settings', can('settings.read')], ['profile', 'profile', true]]],
   ]
   const ico: Record<string, string> = {
     overview: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z',
@@ -34,6 +34,8 @@ export function App() {
     storage: 'M3 7h18v4H3zM3 13h18v4H3zM7 9h.01M7 15h.01',
     workloads: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
     users: 'M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M17 3.1a4 4 0 0 1 0 7.8',
+    alerts: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
+    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
     profile: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   }
   const Ic = ({ k }: { k: string }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={ico[k]} /></svg>
@@ -58,7 +60,9 @@ export function App() {
         {page === 'workloads' && <Workloads me={me} />}
         {page === 'storage' && <Storage me={me} />}
         {page === 'reports' && <Reports me={me} />}
-        {page === 'users' && (can('users.read') ? <Users me={me} /> : <p>{t(l, 'forbidden')}</p>)}
+        {page === 'alerts' && (can('alerts.read') ? <Alerts me={me} can={can} /> : <p>{t(l, 'forbidden')}</p>)}
+        {page === 'users' && (can('users.read') ? <UsersPage me={me} can={can} /> : <p>{t(l, 'forbidden')}</p>)}
+        {page === 'settings' && (can('settings.read') ? <SettingsPage me={me} can={can} /> : <p>{t(l, 'forbidden')}</p>)}
         {page === 'audit' && (can('audit.read') ? <Audit me={me} /> : <p>{t(l, 'forbidden')}</p>)}
         {page === 'profile' && <Profile me={me} setMe={setMe} />}
       </main>
@@ -95,6 +99,7 @@ function Overview({ me }: { me: Me }) {
       <div className="stat"><div className="st-ic g"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div><div className="st-t">{fmt(d.pollerLastBeat, me.timezone, l)}</div><div className="st-l">{t(l, 'pollerBeat')}</div></div></div>
       <div className="stat"><div className="st-ic p"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div className="st-t">{fmt(d.generatedAt, me.timezone, l)}</div><div className="st-l">{t(l, 'generated')}</div></div></div>
     </div>
+    {d.alerts && d.alerts.open > 0 && <div className="card notice" role="alert" style={{ borderLeft: '3px solid ' + (d.alerts.critical > 0 ? '#ef4444' : '#f59e0b') }}><b>{d.alerts.open} {t(l, 'alertsOpenN')}</b>{d.alerts.critical > 0 && <span className="err"> — {d.alerts.critical} {t(l, 'val_critical')}</span>}</div>}
     <div className="card" role="status">{d.dataState === 'no_sources' ? t(l, 'noSources') : ''}</div>
     {d.daily && <DailyReport l={l} d={d.daily} tz={me.timezone} />}
   </>
@@ -134,23 +139,6 @@ function DailyReport({ l, d, tz }: { l: Lang; d: any; tz: string }) {
       {t(l, 'dbCov')} {d.pve?.covered}/{d.pve?.total} · {t(l, 'dbMiss')} {d.pve?.missing} VM · {t(l, 'dbFail')}: PVE {P.proxmox?.failed || 0}, NAS {P.abb?.failed || 0}, Veeam {P.veeam?.failed || 0}</div>
     {d.veeamNotRun > 0 && <div style={{ color: Y }}>{t(l, 'dbVeeamNR')}: {d.veeamNotRun}</div>}
   </div>
-}
-
-function Users({ me }: { me: Me }) {
-  const l = me.language; const [rows, setRows] = useState<any[]>([]); const [q, setQ] = useState('')
-  useEffect(() => { api('GET', '/users').then(setRows).catch(() => {}) }, [])
-  const roles: [string, string, string][] = [['super_admin', '#ef4444', l === 'id' ? 'Akses penuh' : 'Full access'], ['administrator', '#f59e0b', l === 'id' ? 'Kelola sumber, alert, laporan, setelan' : 'Manage sources, alerts, reports, settings'], ['backup_operator', '#4f8ff7', l === 'id' ? 'Lihat data, ack alert, ekspor laporan' : 'View data, acknowledge alerts, export reports'], ['auditor', '#22c55e', l === 'id' ? 'Baca saja termasuk audit log' : 'Read only incl. audit log']]
-  const known = new Set(roles.map(r => r[0])); const extra = Array.from(new Set(rows.map(r => r.role))).filter(x => !known.has(x))
-  const all: [string, string, string][] = [...roles, ...extra.map(x => [x, '#8b5cf6', ''] as [string, string, string])]
-  const cnt = (r: string) => rows.filter(x => x.role === r).length
-  const fl = rows.filter(r => has(q, [r.username, r.role])); const pk = usePager(fl.length)
-  return <>
-    <div className="rolegrid">{all.map(([r, c, d]) => <div key={r} className="rolecard" style={{ borderTop: '2px solid ' + c }}>
-      <div className="rc-h"><b style={{ color: c }}>{r}</b><span className="rc-n">{cnt(r)}</span></div><div className="rc-d">{d}</div></div>)}</div>
-    <div className="card" style={{ overflowX: 'auto' }}><SearchBox l={l} q={q} setQ={setQ} /><table><thead><tr><th>{t(l, 'username')}</th><th>{t(l, 'role')}</th><th>{t(l, 'active')}</th></tr></thead>
-      <tbody>{fl.slice(pk.from, pk.to).map(r => <tr key={r.id}><td>{r.username}</td><td><span className="pill" style={{ color: (all.find(x => x[0] === r.role) || [])[1] as string }}>{r.role}</span></td>
-        <td><span className={'tg ' + (r.active ? 'on' : 'off')} /> {r.active ? t(l, 'active') : '—'}</td></tr>)}</tbody></table><Pager l={l} pk={pk} /></div>
-  </>
 }
 
 function Audit({ me }: { me: Me }) {
@@ -319,27 +307,6 @@ const cell = (l: Lang, typ: string, col: string, v: string) => {
   return v
 }
 
-const PER_OPTS = [10, 30, 50, 100]
-function usePager(n: number) {
-  const [pg, setPg] = useState(0); const [per, setPer] = useState(10)
-  useEffect(() => { setPg(0) }, [n, per])
-  const pages = Math.max(1, Math.ceil(n / per)); const cur = Math.min(pg, pages - 1)
-  return { n, per, setPer, pages, cur, setPg, from: cur * per, to: cur * per + per }
-}
-function Pager({ l, pk }: { l: Lang; pk: ReturnType<typeof usePager> }) {
-  const a = pk.n === 0 ? 0 : pk.from + 1; const b = Math.min(pk.to, pk.n)
-  return <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-    <span className="mut">{l === 'id' ? 'Baris per halaman' : 'Rows per page'}</span>
-    <select value={pk.per} onChange={e => pk.setPer(Number(e.target.value))} style={{ width: 'auto' }}>{PER_OPTS.map(o => <option key={o} value={o}>{o}</option>)}</select>
-    <span className="mut">{a}–{b} / {pk.n}</span>
-    <button disabled={pk.cur === 0} onClick={() => pk.setPg(0)}>«</button><button disabled={pk.cur === 0} onClick={() => pk.setPg(pk.cur - 1)}>‹</button>
-    <span className="mut">{pk.cur + 1} / {pk.pages}</span>
-    <button disabled={pk.cur >= pk.pages - 1} onClick={() => pk.setPg(pk.cur + 1)}>›</button><button disabled={pk.cur >= pk.pages - 1} onClick={() => pk.setPg(pk.pages - 1)}>»</button>
-  </div>
-}
-const SearchBox = ({ l, q, setQ }: { l: Lang; q: string; setQ: (v: string) => void }) => <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}><input placeholder={t(l, 'search')} value={q} onChange={e => setQ(e.target.value)} style={{ maxWidth: 320 }} /></div>
-const has = (q: string, v: any) => !q || JSON.stringify(v).toLowerCase().includes(q.toLowerCase())
-const vkey = (l: Lang, v: string) => { const s = t(l, 'val_' + v); return s.startsWith('val_') ? v : s }
 
 function Reports({ me }: { me: Me }) {
   const l = me.language; const [d, setD] = useState<any>(null); const [typ, setTyp] = useState('veeam_notrun'); const [data, setData] = useState<any>(null); const [q, setQ] = useState('')

@@ -45,6 +45,36 @@ mengganti password pada login pertama.
   sendiri dengan SQL; lihat
   `backend/cmd/server/migrations/008_node_aliases.sql`.
 
+## Alert dan notifikasi
+
+Poller memeriksa status backup tiap 5 menit dan membuat alert untuk: backup gagal,
+backup basi (tidak ada yang berhasil selama N jam), storage melewati ambang (>= 95%
+kritis), dan sumber yang tidak terjangkau. Alert dinotifikasi sekali, diingatkan ulang
+tiap `repeatHours` selama belum diakui, dan ada notifikasi pemulihan saat selesai.
+"Akui" menghentikan pengingat.
+
+Atur di **Alert -> Kanal notifikasi** (izin `alerts.configure`): webhook (Teams, Slack,
+penerima JSON lain), bot Telegram, atau email (SMTP, STARTTLS/TLS). Kredensial dan URL
+disimpan terenkripsi dan tidak ditampilkan lagi. URL webhook harus https (atur
+`NOTIFY_ALLOW_HTTP=true` untuk mengizinkan http biasa ke penerima internal). Jika semua
+kanal gagal, alert tetap menunggu dan dicoba lagi pada siklus berikutnya.
+
+## Manajemen pengguna
+
+Super admin dapat membuat pengguna, mengubah nama dan peran, mereset password (password
+sementara sekali pakai; pengguna wajib menggantinya saat login berikutnya), mencabut
+sesi, menonaktifkan/mengaktifkan kembali, dan menghapus pengguna yang sudah nonaktif.
+Pengaman: tidak bisa mengubah peran atau bertindak atas akun sendiri, super admin aktif
+terakhir dilindungi, dan hanya super admin yang boleh mengubah super admin.
+
+## Retensi data
+
+**Pengaturan -> Retensi data** mengatur lama penyimpanan audit log, riwayat sesi backup,
+event Synology ABB, riwayat polling, dan alert selesai (0 = selamanya; ada batas
+minimum). Pembersihan berjalan sekali sehari, bisa dipratinjau dan dijalankan manual, dan
+tercatat di audit log. Audit log tetap append-only: baris lama hanya bisa dihapus di
+dalam transaksi pembersihan.
+
 Laporkan kerentanan secara privat kepada maintainer, bukan lewat issue publik.
 
 ## Lisensi

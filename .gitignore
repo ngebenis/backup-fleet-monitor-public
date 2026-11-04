@@ -12,3 +12,4 @@ web-src-pre-*/
 *.dump
 *.bak
 node_modules/
+dist/

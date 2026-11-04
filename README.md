@@ -35,11 +35,42 @@ to change the password on first login.
   internal Docker network. Do not expose the API port directly: the app trusts
   the `X-Real-IP` header set by the bundled nginx.
 - Users with `sources.create`/`sources.update` can make the server connect to
-  any HTTPS host they enter (needed to poll your backup systems). Grant those
+  any HTTPS host they enter (needed to poll your backup systems). Users with `alerts.configure`
+  likewise choose where notifications are sent (SMTP host, webhook URL). Grant those
   permissions only to trusted administrators and restrict egress at the network
   level if needed.
 - Node aliases (IP/GUID to FQDN) are stored in the `node_aliases` table; seed
   your own with SQL, see `backend/cmd/server/migrations/008_node_aliases.sql`.
+
+## Alerts and notifications
+
+The poller checks the backup state every 5 minutes and raises an alert for:
+failed backups, stale backups (no success for N hours), storage pools above a
+threshold (>= 95% is critical) and unreachable sources. An alert is notified once,
+re-sent as a reminder every `repeatHours` while unacknowledged, and a recovery
+notice is sent when it resolves. Acknowledging an alert silences its reminders.
+
+Configure **Alerts -> Notification channels** (permission `alerts.configure`):
+webhook (Teams, Slack, any JSON receiver), Telegram bot, or email (SMTP, STARTTLS/TLS).
+Credentials and URLs are stored encrypted and never shown again. Webhook URLs must be
+https (set `NOTIFY_ALLOW_HTTP=true` to allow plain http to an internal receiver).
+If every channel fails, the alert stays pending and is retried on the next cycle.
+
+## User management
+
+Super admins can create users, change names and roles, reset passwords (a one-time
+temporary password; the user must change it at next sign-in), revoke sessions,
+disable/re-enable and delete disabled users. Safeguards: you cannot change your own
+role or act on your own account, the last active super admin is protected, and only a
+super admin may touch a super admin.
+
+## Data retention
+
+**Settings -> Data retention** sets how long audit logs, backup session history,
+Synology ABB events, poll history and resolved alerts are kept (0 = forever; sensible
+minimums are enforced). The purge runs once a day, can be previewed and run manually,
+and is itself written to the audit log. The audit log stays append-only: deleting old
+rows is only possible inside the purge transaction.
 
 Report vulnerabilities privately to the maintainer rather than in public issues.
 

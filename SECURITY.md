@@ -27,5 +27,6 @@ demonstrable impact on this project.
 - Never commit `.env`; back up `SECRET_KEY` (it encrypts stored credentials).
 - Publish only the `web` container; keep `api` and `postgres` on the internal
   network.
-- Grant `sources.create` / `sources.update` only to trusted administrators: those
-  users choose which HTTPS hosts the server connects to.
+- Grant `sources.create` / `sources.update` / `alerts.configure` only to trusted
+  administrators: those users choose which hosts the server connects to (sources,
+  SMTP servers, webhook URLs).

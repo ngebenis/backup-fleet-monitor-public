@@ -271,6 +271,8 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request, u *User) {
 		}
 		rows.Close()
 	}
+	var alertsOpen, alertsCrit int
+	a.db.QueryRow(ctx, `SELECT count(*) FILTER (WHERE state='open'), count(*) FILTER (WHERE state='open' AND severity='critical') FROM alerts WHERE state<>'resolved'`).Scan(&alertsOpen, &alertsCrit)
 	var polledAny int
 	a.db.QueryRow(ctx, "SELECT count(*) FROM backup_sources WHERE last_poll_at IS NOT NULL").Scan(&polledAny)
 	if total > 0 && polledAny == 0 {
@@ -280,6 +282,6 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request, u *User) {
 		"dataState": state, "sourcesTotal": total, "sourcesEnabled": enabled,
 		"pollerLastBeat": beat, "generatedAt": time.Now().UTC(),
 		"workloads": map[string]any{"total": all, "running": running, "covered": all - cov["never"] - cov["disabled"], "ok": cov["ok"], "stale": cov["stale"], "failed": cov["failed"], "never": cov["never"], "disabled": cov["disabled"]},
-		"daily": daily, "sessions24h": sess, "sources": srcs, "staleHours": staleHours(r),
+		"daily": daily, "alerts": map[string]int{"open": alertsOpen, "critical": alertsCrit}, "sessions24h": sess, "sources": srcs, "staleHours": staleHours(r),
 	})
 }

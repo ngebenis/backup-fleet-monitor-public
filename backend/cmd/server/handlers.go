@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -133,6 +132,11 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/users", a.guard("users.read", a.usersList))
 	m.HandleFunc("POST /api/v1/users", a.guard("users.create", a.userCreate))
 	m.HandleFunc("PATCH /api/v1/users/{id}/disable", a.guard("users.disable", a.userDisable))
+	m.HandleFunc("PATCH /api/v1/users/{id}", a.guard("users.update", a.userUpdate))
+	m.HandleFunc("PATCH /api/v1/users/{id}/enable", a.guard("users.update", a.userEnable))
+	m.HandleFunc("POST /api/v1/users/{id}/reset-password", a.guard("users.update", a.userResetPassword))
+	m.HandleFunc("DELETE /api/v1/users/{id}/sessions", a.guard("users.update", a.userRevokeSessions))
+	m.HandleFunc("DELETE /api/v1/users/{id}", a.guard("users.delete", a.userDelete))
 	m.HandleFunc("GET /api/v1/roles", a.guard("roles.read", a.rolesList))
 	m.HandleFunc("GET /api/v1/sources", a.guard("sources.read", a.sourcesList))
 	m.HandleFunc("POST /api/v1/sources", a.guard("sources.create", a.sourceCreate))
@@ -146,6 +150,19 @@ func (a *App) routes() http.Handler {
 	m.HandleFunc("GET /api/v1/reports/data", a.guard("jobs.read", a.reportData))
 	m.HandleFunc("GET /api/v1/storage", a.guard("jobs.read", a.storageList))
 	m.HandleFunc("GET /api/v1/sessions", a.guard("jobs.read", a.sessionsList))
+	m.HandleFunc("GET /api/v1/alerts", a.guard("alerts.read", a.alertsList))
+	m.HandleFunc("POST /api/v1/alerts/{id}/acknowledge", a.guard("alerts.acknowledge", a.alertAction("acknowledged")))
+	m.HandleFunc("POST /api/v1/alerts/{id}/resolve", a.guard("alerts.resolve", a.alertAction("resolved")))
+	m.HandleFunc("GET /api/v1/settings/alerts", a.guard("alerts.read", a.alertSettingsGet))
+	m.HandleFunc("PUT /api/v1/settings/alerts", a.guard("alerts.configure", a.alertSettingsPut))
+	m.HandleFunc("GET /api/v1/notification-channels", a.guard("alerts.configure", a.channelsList))
+	m.HandleFunc("POST /api/v1/notification-channels", a.guard("alerts.configure", a.channelCreate))
+	m.HandleFunc("PATCH /api/v1/notification-channels/{id}", a.guard("alerts.configure", a.channelUpdate))
+	m.HandleFunc("DELETE /api/v1/notification-channels/{id}", a.guard("alerts.configure", a.channelDelete))
+	m.HandleFunc("POST /api/v1/notification-channels/{id}/test", a.guard("alerts.configure", a.channelTest))
+	m.HandleFunc("GET /api/v1/settings/retention", a.guard("settings.read", a.retentionGet))
+	m.HandleFunc("PUT /api/v1/settings/retention", a.guard("settings.update", a.retentionPut))
+	m.HandleFunc("POST /api/v1/settings/retention/run", a.guard("settings.update", a.retentionRun))
 	// Machine-to-machine push ingestion (Bearer token, no cookie, no CSRF).
 	m.HandleFunc("POST /api/v1/ingest/veeam", a.ingestVeeam)
 	m.HandleFunc("POST /api/v1/sources/{id}/ingest-token", a.guard("sources.update", a.ingestTokenIssue))
@@ -254,8 +271,8 @@ func (a *App) changePassword(w http.ResponseWriter, r *http.Request, u *User) {
 	if !decode(w, r, &in) {
 		return
 	}
-	if utf8.RuneCountInString(in.New) < 12 {
-		apiErr(w, 400, "validation", "new password must be at least 12 characters")
+	if msg := validNewPassword(in.New, u.Username); msg != "" {
+		apiErr(w, 400, "validation", msg)
 		return
 	}
 	var hash string
@@ -321,7 +338,10 @@ func (a *App) auditList(w http.ResponseWriter, r *http.Request, u *User) {
 }
 
 func (a *App) usersList(w http.ResponseWriter, r *http.Request, u *User) {
-	rows, err := a.db.Query(r.Context(), `SELECT u.id::text,u.username,u.display_name,ro.name,u.active,u.created_at FROM users u JOIN roles ro ON ro.id=u.role_id ORDER BY u.username`)
+	rows, err := a.db.Query(r.Context(), `SELECT u.id::text,u.username,u.display_name,ro.name,u.active,u.created_at,u.must_change_password,
+		(SELECT max(s.created_at) FROM user_sessions s WHERE s.user_id=u.id),
+		(SELECT count(*) FROM user_sessions s WHERE s.user_id=u.id AND NOT s.revoked AND s.expires_at>now())
+		FROM users u JOIN roles ro ON ro.id=u.role_id ORDER BY u.username`)
 	if err != nil {
 		apiErr(w, 500, "internal", "query failed")
 		return
@@ -330,10 +350,13 @@ func (a *App) usersList(w http.ResponseWriter, r *http.Request, u *User) {
 	out := []map[string]any{}
 	for rows.Next() {
 		var id, un, dn, role string
-		var act bool
+		var act, mc bool
 		var c time.Time
-		rows.Scan(&id, &un, &dn, &role, &act, &c)
-		out = append(out, map[string]any{"id": id, "username": un, "displayName": dn, "role": role, "active": act, "createdAt": c})
+		var last *time.Time
+		var ns int
+		rows.Scan(&id, &un, &dn, &role, &act, &c, &mc, &last, &ns)
+		out = append(out, map[string]any{"id": id, "username": un, "displayName": dn, "role": role, "active": act, "createdAt": c,
+			"mustChangePassword": mc, "lastLogin": last, "activeSessions": ns})
 	}
 	writeJSON(w, 200, out)
 }
@@ -344,8 +367,12 @@ func (a *App) userCreate(w http.ResponseWriter, r *http.Request, u *User) {
 		return
 	}
 	in.Username = strings.ToLower(strings.TrimSpace(in.Username))
-	if len(in.Username) < 3 || utf8.RuneCountInString(in.Password) < 12 {
-		apiErr(w, 400, "validation", "username >=3 chars and password >=12 chars required")
+	if !usernameRe.MatchString(in.Username) {
+		apiErr(w, 400, "validation", "username must be 3-64 chars: letters, digits, . _ - (start with a letter or digit)")
+		return
+	}
+	if msg := validNewPassword(in.Password, in.Username); msg != "" {
+		apiErr(w, 400, "validation", msg)
 		return
 	}
 	if in.Role == "super_admin" && !u.Perms["roles.manage"] {

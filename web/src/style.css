@@ -75,3 +75,11 @@ button.pri{background:#4f8ff7;border:1px solid #4f8ff7;color:#fff;font-weight:60
 .tg::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:#fff;transition:.15s}
 .tg.on{background:#22c55e}.tg.on::after{left:14px}
 @media(max-width:760px){.sb{width:56px}.sb-name,.sb-ver,.sb-sec,.sb-uinfo{display:none}.sb-item{font-size:0;justify-content:center;gap:0}.sb-brand{justify-content:center;padding:0}.tb-chip{display:none}}
+
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button.on{border-color:#4f8ff7;color:#4f8ff7}
+.row-actions{white-space:nowrap}.row-actions button{margin:0 4px 4px 0;padding:3px 8px}
+.mn form.wide{max-width:none}
+.notice{border-left:3px solid #4f8ff7}
+code{background:var(--pill);border-radius:4px;padding:2px 6px}
+.wide label{display:grid;gap:4px;font-size:12px}

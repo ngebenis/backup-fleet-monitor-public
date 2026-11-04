@@ -72,8 +72,16 @@ func runPoller(ctx context.Context, db *pgxpool.Pool) {
 	fmt.Println("poller started", version)
 	t := time.NewTicker(30 * time.Second)
 	defer t.Stop()
+	var lastAlerts time.Time
 	for {
 		beat(ctx, db)
+		// Alert evaluation every 5 minutes; retention at most once a day.
+		if time.Since(lastAlerts) >= 5*time.Minute {
+			lastAlerts = time.Now()
+			alertsTick(ctx, db)
+			retentionTick(ctx, db)
+			beat(ctx, db)
+		}
 		nodes.refreshIfStale(ctx, db)
 		rows, err := db.Query(ctx, `SELECT id::text FROM backup_sources
 			WHERE enabled AND platform<>'veeam_push' AND secret_enc IS NOT NULL AND (last_poll_at IS NULL OR last_poll_at < now() - make_interval(secs => poll_interval_seconds))`)

@@ -20,6 +20,7 @@ jobs:
           cache-dependency-path: backend/go.sum
       - run: go mod verify
       - run: go vet ./...
+      - run: go test ./...
       - run: go build -o /dev/null ./cmd/server
   web:
     runs-on: ubuntu-latest
