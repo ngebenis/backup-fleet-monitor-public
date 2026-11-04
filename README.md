@@ -1,5 +1,7 @@
 # Backup Fleet Monitor
 
+**English** | [Bahasa Indonesia](README.id.md)
+
 Read-only dashboard that aggregates backup status from Proxmox VE, Veeam
 (Enterprise Manager REST or a push collector) and Synology Active Backup for
 Business. Go API + poller, PostgreSQL, React/Vite UI behind nginx.
