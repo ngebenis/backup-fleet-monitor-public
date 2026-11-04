@@ -41,6 +41,8 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 		names = append(names, e.Name())
 	}
 	sort.Strings(names)
+	// Some migrations (012, 013) also record themselves; DO NOTHING keeps both
+	// paths working on a fresh database.
 	for _, n := range names {
 		var exists bool
 		if err := conn.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version=$1)", n).Scan(&exists); err != nil {
@@ -58,7 +60,7 @@ func migrate(ctx context.Context, db *pgxpool.Pool) error {
 			tx.Rollback(ctx)
 			return fmt.Errorf("migration %s: %w", n, err)
 		}
-		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations(version) VALUES($1)", n); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations(version) VALUES($1) ON CONFLICT (version) DO NOTHING", n); err != nil {
 			tx.Rollback(ctx)
 			return err
 		}
