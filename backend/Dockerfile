@@ -3,7 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY cmd ./cmd
 RUN go mod verify && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
-FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 RUN adduser -D -u 10001 app && apk add --no-cache wget tzdata
 COPY --from=build /out/server /usr/local/bin/server
 USER app
