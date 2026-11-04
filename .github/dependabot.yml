@@ -1,20 +1,39 @@
 version: 2
 updates:
+  # Base images: take patch/minor updates, but never jump a major version
+  # automatically. Example: postgres 16 -> 18 cannot read an existing 16 data
+  # directory, so a major bump must be a deliberate, tested migration.
   - package-ecosystem: docker
     directory: /backend
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: golang
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker
     directory: /web
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker-compose
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+  # Libraries: one grouped PR per ecosystem for minor/patch updates.
   - package-ecosystem: gomod
     directory: /backend
     schedule: { interval: weekly }
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: npm
     directory: /web
     schedule: { interval: weekly }
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
