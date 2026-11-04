@@ -1,0 +1,14 @@
+.env
+.env*.local
+backups/
+secrets/
+server-pre-*/
+web-src-pre-*/
+*.dump
+*.bak
+node_modules/
+server-pre-*/
+web-src-pre-*/
+*.dump
+*.bak
+node_modules/

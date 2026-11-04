@@ -1,0 +1,70 @@
+name: backup-monitor
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bm
+      POSTGRES_DB: bm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bm -d bm"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy: { resources: { limits: { memory: 512m } } }
+  api:
+    build: ./backend
+    restart: unless-stopped
+    command: ["api"]
+    environment:
+      DATABASE_URL: postgres://bm:${POSTGRES_PASSWORD}@postgres:5432/bm?sslmode=disable
+      SECRET_KEY: ${SECRET_KEY:?set in .env}
+      ADMIN_BOOTSTRAP_USER: ${ADMIN_BOOTSTRAP_USER:-admin}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:?set in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SESSION_TTL: ${SESSION_TTL:-12h}
+      TZ: UTC
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy: { resources: { limits: { memory: 256m } } }
+  poller:
+    build: ./backend
+    restart: unless-stopped
+    command: ["poller"]
+    environment:
+      DATABASE_URL: postgres://bm:${POSTGRES_PASSWORD}@postgres:5432/bm?sslmode=disable
+      SECRET_KEY: ${SECRET_KEY:?set in .env}
+      TZ: UTC
+    depends_on: { api: { condition: service_healthy } }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp/beat -mmin -2 | grep -q beat"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy: { resources: { limits: { memory: 256m } } }
+  web:
+    build: ./web
+    restart: unless-stopped
+    ports: ["${WEB_PORT:-8081}:80"]
+    depends_on: { api: { condition: service_healthy } }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy: { resources: { limits: { memory: 128m } } }
+networks:
+  internal: {}
+volumes:
+  pgdata: {}

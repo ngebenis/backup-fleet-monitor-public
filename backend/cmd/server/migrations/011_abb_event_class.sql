@@ -1,0 +1,3 @@
+ALTER TABLE abb_events ADD COLUMN IF NOT EXISTS class_name text NOT NULL DEFAULT '';
+ALTER TABLE abb_events ADD COLUMN IF NOT EXISTS device text NOT NULL DEFAULT '';
+ALTER TABLE abb_events ADD COLUMN IF NOT EXISTS raw_log jsonb NOT NULL DEFAULT '{}'::jsonb;

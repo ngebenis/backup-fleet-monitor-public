@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Backup Monitor">
+  <defs>
+    <linearGradient id="fillL" x1="0.15" y1="0.05" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#60BCEE"/>
+      <stop offset="0.45" stop-color="#3E9FDF"/>
+      <stop offset="1" stop-color="#2B7CC0"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0.6" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#7FD4F7"/>
+      <stop offset="1" stop-color="#49B0E8"/>
+    </linearGradient>
+    <path id="shield" d="M19 21 C30 15.5 41 15.4 50 15.4 C59 15.4 70 15.5 81 21 C84.5 39 73 69 50 85 C27 69 15.5 39 19 21 Z"/>
+    <clipPath id="halfL"><rect x="0" y="0" width="53" height="100"/></clipPath>
+    <clipPath id="halfR"><rect x="53" y="0" width="47" height="100"/></clipPath>
+  </defs>
+  <rect width="100" height="100" rx="18" fill="#0F1621"/>
+  <use href="#shield" fill="#1F2D3D"/>
+  <use href="#shield" fill="url(#fillL)" clip-path="url(#halfL)"/>
+  <use href="#shield" fill="none" stroke="url(#rim)" stroke-width="4" stroke-linejoin="round" clip-path="url(#halfR)"/>
+</svg>
