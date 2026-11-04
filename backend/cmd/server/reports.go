@@ -67,7 +67,7 @@ func (a *App) reportData(w http.ResponseWriter, r *http.Request, u *User) {
 		cw.Write(q.cols)
 		for _, row := range out {
 			for i, c := range row { // neutralise spreadsheet formula injection
-				if len(c) > 0 && (c[0] == '=' || c[0] == '+' || c[0] == '-' || c[0] == '@') {
+				if len(c) > 0 && (c[0] == '=' || c[0] == '+' || c[0] == '-' || c[0] == '@' || c[0] == '\t' || c[0] == '\r') {
 					row[i] = "'" + c
 				}
 			}

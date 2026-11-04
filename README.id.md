@@ -22,10 +22,14 @@ mengganti password pada login pertama.
 
 ## Catatan keamanan
 
-- **Jalankan di belakang HTTPS.** `COOKIE_SECURE` bawaannya `true`, sehingga
-  cookie login hanya dikirim lewat TLS. Gunakan `COOKIE_SECURE=false` hanya
-  untuk uji coba lokal lewat HTTP. Terminasi TLS di reverse proxy atau load
-  balancer, dan aktifkan baris HSTS di `web/nginx.conf`.
+- **TLS diterminasi di edge Anda** (F5, FortiWeb, Cloudflare, dll.). Container
+  sendiri berbicara HTTP biasa dan tidak butuh sertifikat. Biarkan
+  `COOKIE_SECURE=true` (bawaan): browser melihat HTTPS sehingga cookie `Secure`
+  berfungsi. Gunakan `false` hanya untuk uji lokal langsung lewat HTTP. Atur HSTS
+  di edge.
+- **IP klien asli.** Di belakang proxy, semua request tampak berasal dari alamat
+  proxy; atur `set_real_ip_from` di `web/nginx.conf` agar rate limit login dan
+  audit log memakai IP klien yang sebenarnya.
 - **Simpan cadangan `SECRET_KEY`.** Kredensial sumber disimpan terenkripsi
   dengannya (AES-256-GCM). Jika key hilang, semua kredensial harus dimasukkan
   ulang.

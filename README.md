@@ -21,10 +21,13 @@ to change the password on first login.
 
 ## Security notes
 
-- **Run behind HTTPS.** `COOKIE_SECURE` defaults to `true`; the login cookie is
-  then only sent over TLS. Use `COOKIE_SECURE=false` solely for local HTTP
-  testing. Terminate TLS in a reverse proxy/load balancer and enable the HSTS
-  line in `web/nginx.conf`.
+- **TLS is terminated at your edge** (F5, FortiWeb, Cloudflare...). The containers
+  themselves speak plain HTTP and do not need certificates. Keep `COOKIE_SECURE=true`
+  (the default): the browser sees HTTPS, so the `Secure` cookie works. Use `false`
+  only for direct local HTTP testing. Set HSTS at the edge.
+- **Real client IP.** Behind a proxy all requests come from the proxy's address;
+  configure `set_real_ip_from` in `web/nginx.conf` so login rate limiting and audit
+  logs use the real client IP.
 - **Back up `SECRET_KEY`.** Source credentials are stored encrypted with it
   (AES-256-GCM); losing it means re-entering every credential.
 - Never commit `.env`. It is git-ignored.
